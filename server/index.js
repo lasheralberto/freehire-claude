@@ -202,7 +202,7 @@ for (const [kind, file] of [['cv', 'cv.pdf'], ['cover-letter', 'cover-letter.pdf
       getJob: (s) => callJsonTool('get_job', { slug: s, max_description_chars: 50000 }),
       runClaude,
     });
-    return { ...out, url: `/api/files/${slug}/${out.file}` };
+    return { ...out, url: `/api/files/${encodeURIComponent(slug)}/${out.file}` };
   }));
 }
 
@@ -211,9 +211,11 @@ app.get('/api/files/:slug/:file', async (req, res) => {
     const { slug, file } = req.params;
     const { dataDir } = await loadConfig(CONFIG_FILE);
     if (!DOC_FILES.has(file) || !dataDir) return res.status(404).json({ error: 'not found' });
-    const path = join(offerDir(dataDir, slug), file);
-    if (!existsSync(path)) return res.status(404).json({ error: 'not found' });
-    res.sendFile(path);
+    const dir = offerDir(dataDir, slug);
+    if (!existsSync(join(dir, file))) return res.status(404).json({ error: 'not found' });
+    res.sendFile(file, { root: dir, dotfiles: 'allow' }, (err) => {
+      if (err && !res.headersSent) sendError(res, err);
+    });
   } catch (err) {
     sendError(res, err);
   }
