@@ -303,7 +303,7 @@ export default function App() {
         <div hidden={mode !== 'ai'}><AiSearch onOpen={setOpenSlug} /></div>
         <div hidden={mode !== 'manual'}><ManualSearch onOpen={setOpenSlug} /></div>
       </main>
-      <JobDrawer slug={openSlug} onClose={close} onOpen={setOpenSlug} config={config} openSettings={openSettings} />
+      <JobDrawer slug={openSlug} onClose={close} onOpen={setOpenSlug} config={config} openSettings={openSettings} settingsOpen={settingsOpen} />
       <SettingsPanel open={settingsOpen} onClose={closeSettings} onChange={setConfig} />
     </div>
   );
