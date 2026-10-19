@@ -1,6 +1,7 @@
 const str = (v) => (typeof v === 'string' ? v : '');
 const arr = (v) => (Array.isArray(v) ? v : []);
 const strs = (v) => arr(v).filter((x) => typeof x === 'string');
+const hd = (v, d) => (typeof v === 'string' && v.trim() ? v : d);
 const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 
 function contact(c) {
@@ -20,12 +21,12 @@ export function validateCv(o) {
     headline: str(o.headline),
     contact: contact(o.contact),
     headings: {
-      summary: str(h.summary),
-      experience: str(h.experience),
-      education: str(h.education),
-      skills: str(h.skills),
-      certifications: str(h.certifications),
-      languages: str(h.languages),
+      summary: hd(h.summary, 'Summary'),
+      experience: hd(h.experience, 'Professional Experience'),
+      education: hd(h.education, 'Education'),
+      skills: hd(h.skills, 'Skills'),
+      certifications: hd(h.certifications, 'Certifications'),
+      languages: hd(h.languages, 'Languages'),
     },
     summary: str(o.summary),
     skills: strs(o.skills),

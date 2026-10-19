@@ -34,3 +34,16 @@ test('saveCvBase writes both files and readCvBase returns text', async () => {
 test('readCvBase returns null when missing', async () => {
   assert.equal(await readCvBase(await tmp()), null);
 });
+
+test('saveCvBase maps extractor failures to 422 and rethrows HttpError', async () => {
+  const dir = await tmp();
+  await assert.rejects(
+    saveCvBase(dir, Buffer.from('%PDF-1.4 x'), { extract: async () => { throw new Error('boom'); } }),
+    (e) => e.status === 422 && e.message.includes('No se pudo leer el PDF'),
+  );
+  const { HttpError } = await import('../server/docs/config.js');
+  await assert.rejects(
+    saveCvBase(dir, Buffer.from('%PDF-1.4 x'), { extract: async () => { throw new HttpError(418, 'tea'); } }),
+    { status: 418 },
+  );
+});

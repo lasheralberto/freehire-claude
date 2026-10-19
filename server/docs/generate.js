@@ -13,12 +13,13 @@ const TIMEOUT_MS = 300_000;
 const RETRY_SUFFIX = '\n\nTu respuesta anterior no era JSON válido. Devuelve SOLO el objeto JSON.';
 
 export async function generateDocument({
-  kind, slug, notes = '', config, getJob, runClaude, today = new Date().toISOString().slice(0, 10),
+  kind, slug, notes = '', config, getJob, runClaude, today = new Date().toISOString().slice(0, 10), signal,
 }) {
   const dataDir = config?.dataDir;
   if (!dataDir) throw new HttpError(409, 'Configura la carpeta de datos en Ajustes');
   const cvBase = await readCvBase(dataDir);
   if (cvBase === null) throw new HttpError(409, 'Sube tu CV base en Ajustes');
+  const dir = offerDir(dataDir, slug);
   const job = await getJob(slug);
 
   const isCv = kind === 'cv';
@@ -29,21 +30,21 @@ export async function generateDocument({
 
   let doc;
   let model;
+  let lastError;
   for (let attempt = 0; attempt < 2 && !doc; attempt++) {
     const res = await runClaude({
       prompt: attempt ? prompt + RETRY_SUFFIX : prompt,
-      systemPrompt, model: config.docModel, timeoutMs: TIMEOUT_MS,
+      systemPrompt, model: config.docModel, timeoutMs: TIMEOUT_MS, signal,
     });
     model = res.model;
     try {
       doc = validate(parseJsonObject(res.text));
-    } catch { /* retry once */ }
+    } catch (e) { lastError = e; /* retry once */ }
   }
-  if (!doc) throw new HttpError(502, 'El modelo no devolvió un documento válido');
+  if (!doc) throw new HttpError(502, `El modelo no devolvió un documento válido: ${lastError?.message ?? 'sin detalle'}`);
 
   const warnings = isCv ? checkCvFacts(doc, cvBase) : [];
   const buf = await (isCv ? renderCvPdf(doc) : renderLetterPdf(doc));
-  const dir = offerDir(dataDir, slug);
   await mkdir(dir, { recursive: true });
   const file = isCv ? 'cv.pdf' : 'cover-letter.pdf';
   const out = path.join(dir, file);

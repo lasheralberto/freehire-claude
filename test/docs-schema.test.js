@@ -7,7 +7,7 @@ test('validateCv fills defaults', () => {
   const cv = validateCv({ name: 'A', headings: {}, experience: [] });
   assert.deepEqual(cv.skills, []);
   assert.deepEqual(cv.contact.links, []);
-  assert.equal(cv.headings.summary, '');
+  assert.equal(cv.headings.summary, 'Summary');
   assert.equal(cv.summary, '');
 });
 
@@ -38,4 +38,20 @@ test('checkCvFacts', () => {
   assert.equal(y.length, 1);
   assert.match(y[0], /2024/);
   assert.deepEqual(checkCvFacts(cvWith({ company: 'Telefonica', end: 'Present' }), BASE), []);
+});
+
+test('validateCv falls back to English headings when empty or missing', () => {
+  const cv = validateCv({ name: 'A', headings: { skills: '  ', summary: 'Resumen' }, experience: [] });
+  assert.equal(cv.headings.summary, 'Resumen');
+  assert.equal(cv.headings.experience, 'Professional Experience');
+  assert.equal(cv.headings.education, 'Education');
+  assert.equal(cv.headings.skills, 'Skills');
+  assert.equal(cv.headings.certifications, 'Certifications');
+  assert.equal(cv.headings.languages, 'Languages');
+});
+
+test('checkCvFacts year is word-bounded', () => {
+  const y = checkCvFacts(cvWith({ company: 'Telefonica', end: '2024' }), 'Telefonica ref 120245 y 2019');
+  assert.equal(y.length, 1);
+  assert.match(y[0], /2024/);
 });

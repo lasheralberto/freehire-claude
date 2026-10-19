@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { generateDoc, getJob, similarJobs } from './api.js';
+import { runDoc, useDocState } from './doc-jobs.js';
 
 const WORK_MODE = { remote: 'Remoto', hybrid: 'Híbrido', onsite: 'Presencial' };
 const PERIOD = { year: 'año', month: 'mes', day: 'día', hour: 'hora' };
@@ -114,35 +115,24 @@ export function AgentTrace({ steps, sampling, running }) {
   );
 }
 
-const IDLE = { status: 'idle' };
-
 function DocActions({ slug, config, openSettings }) {
-  const [states, setStates] = useState({ cv: IDLE, 'cover-letter': IDLE });
   const [notes, setNotes] = useState('');
+  const cv = useDocState(slug, 'cv');
+  const letter = useDocState(slug, 'cover-letter');
+  const states = { cv, 'cover-letter': letter };
 
   useEffect(() => {
-    setStates({ cv: IDLE, 'cover-letter': IDLE });
     setNotes('');
   }, [slug]);
 
   const ready = Boolean(config?.dataDir && config?.hasCvBase);
   const missing = !config?.dataDir ? 'Configura la carpeta de datos en Ajustes' : 'Sube tu CV base en Ajustes';
-  const set = (kind, v) => setStates((s) => ({ ...s, [kind]: v }));
 
-  async function run(kind) {
+  function run(kind) {
     if (!ready) return openSettings();
-    const startedFor = slug;
-    set(kind, { status: 'busy' });
-    try {
-      const result = await generateDoc(slug, kind, kind === 'cover-letter' ? notes.trim() || undefined : undefined);
-      if (activeSlug.current === startedFor) set(kind, { status: 'done', result });
-    } catch (e) {
-      if (activeSlug.current === startedFor) set(kind, { status: 'error', error: e.message });
-    }
+    const n = kind === 'cover-letter' ? notes.trim() || undefined : undefined;
+    runDoc(slug, kind, () => generateDoc(slug, kind, n));
   }
-
-  const activeSlug = useRef(slug);
-  activeSlug.current = slug;
 
   const row = (kind, label) => {
     const st = states[kind];

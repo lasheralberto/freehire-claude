@@ -15,7 +15,13 @@ export async function saveCvBase(dataDir, buffer, { extract = extractPdfText } =
   if (!Buffer.isBuffer(buffer) || buffer.subarray(0, 5).toString('latin1') !== '%PDF-') {
     throw new HttpError(400, 'El archivo no es un PDF');
   }
-  const text = (await extract(buffer)) ?? '';
+  let text;
+  try {
+    text = (await extract(buffer)) ?? '';
+  } catch (e) {
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(422, 'No se pudo leer el PDF (¿protegido o dañado?)');
+  }
   if (text.length < MIN_CHARS) {
     throw new HttpError(422, 'No se pudo extraer texto del PDF (¿es un escaneo?)');
   }

@@ -15,7 +15,7 @@ export function checkCvFacts(cv, baseText) {
   const dates = [...cv.experience, ...cv.education].flatMap((e) => [e.start, e.end]);
   for (const d of dates) {
     for (const y of String(d || '').match(/\b(19|20)\d{2}\b/g) || []) {
-      if (!base.includes(y)) warnings.add(`Año ${y} no aparece en tu CV base`);
+      if (!new RegExp(`\\b${y}\\b`).test(base)) warnings.add(`Año ${y} no aparece en tu CV base`);
     }
   }
   return [...warnings];

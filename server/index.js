@@ -190,9 +190,11 @@ app.post('/api/cv-base', express.raw({ type: 'application/pdf', limit: '10mb' })
 }));
 
 for (const [kind, file] of [['cv', 'cv.pdf'], ['cover-letter', 'cover-letter.pdf']]) {
-  app.post(`/api/jobs/:slug/${kind}`, route(async (req) => {
+  app.post(`/api/jobs/:slug/${kind}`, route(async (req, res) => {
     const { slug } = req.params;
     const notes = typeof req.body?.notes === 'string' ? req.body.notes : undefined;
+    const ac = new AbortController();
+    res.on('close', () => { if (!res.writableFinished) ac.abort(); });
     const config = await loadConfig(CONFIG_FILE);
     const out = await generateDocument({
       kind,
@@ -201,6 +203,7 @@ for (const [kind, file] of [['cv', 'cv.pdf'], ['cover-letter', 'cover-letter.pdf
       config,
       getJob: (s) => callJsonTool('get_job', { slug: s, max_description_chars: 50000 }),
       runClaude,
+      signal: ac.signal,
     });
     return { ...out, url: `/api/files/${encodeURIComponent(slug)}/${out.file}` };
   }));
