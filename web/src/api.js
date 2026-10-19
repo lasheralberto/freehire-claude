@@ -50,3 +50,30 @@ export async function agenticSearch(body, { onEvent, signal }) {
     }
   }
 }
+
+async function sendJson(url, method, body) {
+  const res = await fetch(url, {
+    method,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body ?? {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+export const getConfig = () => getJson('/api/config');
+export const saveConfig = (patch) => sendJson('/api/config', 'PUT', patch);
+export const generateDoc = (slug, kind, notes) =>
+  sendJson(`/api/jobs/${encodeURIComponent(slug)}/${kind}`, 'POST', notes ? { notes } : {});
+
+export async function uploadCvBase(file) {
+  const res = await fetch('/api/cv-base', {
+    method: 'POST',
+    headers: { 'content-type': 'application/pdf' },
+    body: file,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}

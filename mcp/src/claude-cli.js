@@ -45,10 +45,10 @@ export function pickModel(modelPreferences) {
 }
 
 /**
- * @param {{ prompt: string, systemPrompt?: string, model?: string, signal?: AbortSignal }} opts
+ * @param {{ prompt: string, systemPrompt?: string, model?: string, signal?: AbortSignal, timeoutMs?: number }} opts
  * @returns {Promise<{ text: string, model: string, durationMs: number, costUsd?: number }>}
  */
-export function runClaude({ prompt, systemPrompt, model = DEFAULT_MODEL, signal }) {
+export function runClaude({ prompt, systemPrompt, model = DEFAULT_MODEL, signal, timeoutMs = TIMEOUT_MS }) {
   const args = [
     '-p',
     '--output-format', 'json',
@@ -70,7 +70,7 @@ export function runClaude({ prompt, systemPrompt, model = DEFAULT_MODEL, signal 
     });
     let stdout = '';
     let stderr = '';
-    const timer = setTimeout(() => child.kill(), TIMEOUT_MS);
+    const timer = setTimeout(() => child.kill(), timeoutMs);
     const onAbort = () => child.kill();
     signal?.addEventListener('abort', onAbort, { once: true });
 

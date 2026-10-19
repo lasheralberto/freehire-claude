@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getJob, similarJobs } from './api.js';
+import { generateDoc, getJob, similarJobs } from './api.js';
+import { runDoc, useDocState } from './doc-jobs.js';
 
 const WORK_MODE = { remote: 'Remoto', hybrid: 'Híbrido', onsite: 'Presencial' };
 const PERIOD = { year: 'año', month: 'mes', day: 'día', hour: 'hora' };
@@ -114,7 +115,62 @@ export function AgentTrace({ steps, sampling, running }) {
   );
 }
 
-export function JobDrawer({ slug, onClose, onOpen }) {
+function DocActions({ slug, config, openSettings }) {
+  const [notes, setNotes] = useState('');
+  const cv = useDocState(slug, 'cv');
+  const letter = useDocState(slug, 'cover-letter');
+  const states = { cv, 'cover-letter': letter };
+
+  useEffect(() => {
+    setNotes('');
+  }, [slug]);
+
+  const ready = Boolean(config?.dataDir && config?.hasCvBase);
+  const missing = !config?.dataDir ? 'Configura la carpeta de datos en Ajustes' : 'Sube tu CV base en Ajustes';
+
+  function run(kind) {
+    if (!ready) return openSettings();
+    const n = kind === 'cover-letter' ? notes.trim() || undefined : undefined;
+    runDoc(slug, kind, () => generateDoc(slug, kind, n));
+  }
+
+  const row = (kind, label) => {
+    const st = states[kind];
+    return (
+      <div className="docs__row">
+        <button className="btn" disabled={st.status === 'busy'} onClick={() => run(kind)}>
+          {st.status === 'busy' ? 'Generando…' : label}
+        </button>
+        {st.status === 'done' && (
+          <div className="docs__result">
+            <span className="muted small">{st.result.path}</span>{' '}
+            <a href={st.result.url} target="_blank" rel="noreferrer">Abrir</a>
+            {(st.result.warnings || []).map((w, i) => (
+              <p key={i} className="small docs__warn">⚠ Revisa: {w}</p>
+            ))}
+          </div>
+        )}
+        {st.status === 'error' && <p className="error">{st.error}</p>}
+      </div>
+    );
+  };
+
+  return (
+    <div className="docs">
+      <div className="docs__btns">
+        {row('cv', '📄 Generar CV')}
+        {row('cover-letter', '✉ Cover letter')}
+      </div>
+      <label className="docs__notes">
+        <span className="muted small">Notas para la cover letter (por qué me interesa)</span>
+        <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+      </label>
+      {!ready && <p className="muted small">{missing}</p>}
+    </div>
+  );
+}
+
+export function JobDrawer({ slug, onClose, onOpen, config, openSettings, settingsOpen }) {
   const [job, setJob] = useState(null);
   const [similar, setSimilar] = useState([]);
   const [error, setError] = useState(null);
@@ -133,10 +189,10 @@ export function JobDrawer({ slug, onClose, onOpen }) {
   }, [slug]);
 
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose();
+    const onKey = (e) => e.key === 'Escape' && !settingsOpen && onClose();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, settingsOpen]);
 
   if (!slug) return null;
   const salary = job && formatSalary(job.salary);
@@ -163,6 +219,7 @@ export function JobDrawer({ slug, onClose, onOpen }) {
             <a className="btn btn--primary" href={job.url} target="_blank" rel="noreferrer">
               Ver oferta original ↗
             </a>
+            <DocActions slug={slug} config={config} openSettings={openSettings} />
             {job.enrichment?.summary && <p className="drawer__summary">{job.enrichment.summary}</p>}
             <pre className="drawer__desc">{job.description}</pre>
             {similar.length > 0 && (

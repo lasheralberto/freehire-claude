@@ -14,7 +14,7 @@ Navegador ──HTTP/SSE──▶ bridge (server/) ──MCP stdio──▶ free
 
 ## Arranque
 
-Necesitas Node ≥ 20 y Claude Code instalado y logueado (`claude` en el PATH).
+Necesitas Node ≥ 22 y Claude Code instalado y logueado (`claude` en el PATH).
 
 ```bash
 npm install
@@ -65,9 +65,27 @@ MCP de verdad, porque el bridge es el cliente.
 | `CLAUDE_BIN` | autodetectado | Ruta al ejecutable de `claude` (en Windows se resuelve el `.exe` detrás del shim `.cmd`). |
 | `FREEHIRE_API_URL` | `https://freehire.me/api/v1` | Por si montas tu propia instancia de freehire. |
 | `FREEHIRE_API_KEY` | — | Opcional; los endpoints de búsqueda son públicos. |
+| `FREEHIRE_CONFIG` | `config.json` en la raíz | Ruta alternativa al `config.json` de Ajustes (carpeta de datos y modelo). |
 
 Las llamadas a `claude` van aisladas: `--tools ""`, `--strict-mcp-config` (no carga MCPs, así no hay recursión),
 `--safe-mode` (sin hooks, plugins ni CLAUDE.md) y `--no-session-persistence`.
+
+## CV y cover letter
+
+Desde el detalle de una oferta puedes generar un **CV adaptado** y una **cover letter** en PDF con tu Claude Code local.
+
+- **Ajustes**: elige la *carpeta de datos*, el *modelo* y sube tu **CV base en PDF**. Se guarda en `config.json`
+  (ignorado por git; la ruta se puede cambiar con `FREEHIRE_CONFIG`).
+- **Carpetas**:
+  ```
+  <carpeta>/_cv-base/cv-base.pdf | cv-base.md
+  <carpeta>/<slug>/cv.pdf | cover-letter.pdf
+  ```
+- `cv-base.md` es el texto extraído del PDF y **es la fuente que usa Claude**; puedes editarlo a mano.
+- Regenerar **sobrescribe** los ficheros de esa oferta.
+- La generación puede tardar unos minutos (timeout de 5 min). Si cierras el panel mientras tanto, se cancela la llamada a `claude`.
+- Tras generar el CV se comprueba contra el CV base (empresas, instituciones, certificaciones y años) y se muestran
+  **avisos "Revisa:"** si algo no aparece; el PDF se escribe igualmente.
 
 ## Estructura
 
@@ -80,6 +98,7 @@ mcp/src/
   claude-cli.js     ejecuta el Claude Code local (lo comparten el MCP y el bridge)
   freehire-api.js   cliente de la API pública + compactJob
   vocab.js          vocabulario de filtros (de docs/API.md de freehire)
+server/docs/         generación de CV y cover letter (prompts, validación, fact-check, PDF)
 server/index.js     bridge Express: cliente MCP con sampling + API/SSE para el panel
 web/                panel React (Vite)
 test/               tests unitarios (node --test)
