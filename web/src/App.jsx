@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { agenticSearch, health, searchJobs } from './api.js';
+import { agenticSearch, getConfig, health, searchJobs } from './api.js';
 import { AgentTrace, JobCard, JobDrawer } from './components.jsx';
+import { SettingsPanel } from './settings.jsx';
 
 const EXAMPLES = [
   'Backend senior con Python en remoto desde España, idealmente fintech',
@@ -261,6 +262,8 @@ export default function App() {
   const [mode, setMode] = useState('ai');
   const [openSlug, setOpenSlug] = useState(null);
   const [status, setStatus] = useState({ state: 'checking' });
+  const [config, setConfig] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     health()
@@ -268,7 +271,13 @@ export default function App() {
       .catch((e) => setStatus({ state: 'down', error: e.message }));
   }, []);
 
+  useEffect(() => {
+    getConfig().then(setConfig).catch(() => {});
+  }, []);
+
   const close = useCallback(() => setOpenSlug(null), []);
+  const openSettings = useCallback(() => setSettingsOpen(true), []);
+  const closeSettings = useCallback(() => setSettingsOpen(false), []);
 
   return (
     <div className="app">
@@ -284,6 +293,7 @@ export default function App() {
           <button role="tab" aria-selected={mode === 'ai'} className={mode === 'ai' ? 'active' : ''} onClick={() => setMode('ai')}>✦ IA</button>
           <button role="tab" aria-selected={mode === 'manual'} className={mode === 'manual' ? 'active' : ''} onClick={() => setMode('manual')}>Filtros</button>
         </nav>
+        <button className="btn" onClick={openSettings}>⚙ Ajustes</button>
         <span className={`status status--${status.state}`} title={status.error || ''}>
           {status.state === 'ok' ? `MCP conectado · ${status.tools} tools` : status.state === 'checking' ? 'Conectando…' : 'Bridge caído'}
         </span>
@@ -293,7 +303,8 @@ export default function App() {
         <div hidden={mode !== 'ai'}><AiSearch onOpen={setOpenSlug} /></div>
         <div hidden={mode !== 'manual'}><ManualSearch onOpen={setOpenSlug} /></div>
       </main>
-      <JobDrawer slug={openSlug} onClose={close} onOpen={setOpenSlug} />
+      <JobDrawer slug={openSlug} onClose={close} onOpen={setOpenSlug} config={config} openSettings={openSettings} />
+      <SettingsPanel open={settingsOpen} onClose={closeSettings} onChange={setConfig} />
     </div>
   );
 }
