@@ -1,6 +1,5 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFile } from 'node:fs/promises';
 import { renderCvPdf, renderLetterPdf } from '../server/docs/render.js';
 import { extractPdfText } from '../server/docs/cv-base.js';
 import { validateCv, validateLetter } from '../server/docs/schema.js';
@@ -37,7 +36,6 @@ test('renderCvPdf produces ATS-readable Unicode text', async () => {
   for (const s of ['Zoë Müller', 'Ørsted', 'Łódź', 'İstanbul', 'Professional Experience']) {
     assert.ok(text.includes(s), `missing ${s}`);
   }
-  await writeFile(process.env.FH_RENDER_OUT || 'NUL', buf).catch(() => {});
 });
 
 test('renderLetterPdf contains every paragraph', async () => {
