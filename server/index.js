@@ -17,6 +17,10 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { CreateMessageRequestSchema, LoggingMessageNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { runClaude, pickModel, samplingMessagesToPrompt, resolveClaudeBin } from '../mcp/src/claude-cli.js';
+import { HttpError, MODELS, loadConfig, saveConfig } from './docs/config.js';
+import { CV_BASE_DIR, offerDir } from './docs/paths.js';
+import { saveCvBase, readCvBase } from './docs/cv-base.js';
+import { generateDocument } from './docs/generate.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MCP_ENTRY = join(ROOT, 'mcp', 'src', 'index.js');
@@ -146,6 +150,79 @@ app.get('/api/jobs/:slug/similar', async (req, res) => {
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
+});
+
+// --- CV / cover-letter documents ---
+const CONFIG_FILE = process.env.FREEHIRE_CONFIG || join(ROOT, 'config.json');
+const DOC_FILES = new Set(['cv.pdf', 'cover-letter.pdf']);
+
+const errStatus = (err) => (err instanceof HttpError ? err.status : Number.isInteger(err?.status) ? err.status : 500);
+const sendError = (res, err) => res.status(errStatus(err)).json({ error: err.message });
+const route = (fn) => async (req, res) => {
+  try {
+    res.json(await fn(req, res));
+  } catch (err) {
+    sendError(res, err);
+  }
+};
+
+async function configView() {
+  const config = await loadConfig(CONFIG_FILE);
+  const mdPath = config.dataDir ? join(config.dataDir, CV_BASE_DIR, 'cv-base.md') : null;
+  const hasCvBase = Boolean(mdPath) && (await readCvBase(config.dataDir)) !== null;
+  return { dataDir: config.dataDir, docModel: config.docModel, models: MODELS, hasCvBase, cvBaseMdPath: hasCvBase ? mdPath : null };
+}
+
+app.get('/api/config', route(configView));
+
+app.put('/api/config', route(async (req) => {
+  const { dataDir, docModel } = req.body || {};
+  await saveConfig(CONFIG_FILE, { ...(dataDir !== undefined ? { dataDir } : {}), ...(docModel !== undefined ? { docModel } : {}) });
+  return configView();
+}));
+
+app.post('/api/cv-base', express.raw({ type: 'application/pdf', limit: '10mb' }), route(async (req) => {
+  const { dataDir } = await loadConfig(CONFIG_FILE);
+  if (!dataDir) throw new HttpError(409, 'Configura la carpeta de datos en Ajustes');
+  if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw new HttpError(400, 'Se esperaba un PDF (application/pdf)');
+  const { mdPath, chars } = await saveCvBase(dataDir, req.body);
+  return { mdPath, chars };
+}));
+
+for (const [kind, file] of [['cv', 'cv.pdf'], ['cover-letter', 'cover-letter.pdf']]) {
+  app.post(`/api/jobs/:slug/${kind}`, route(async (req) => {
+    const { slug } = req.params;
+    const notes = typeof req.body?.notes === 'string' ? req.body.notes : undefined;
+    const config = await loadConfig(CONFIG_FILE);
+    const out = await generateDocument({
+      kind,
+      slug,
+      notes,
+      config,
+      getJob: (s) => callJsonTool('get_job', { slug: s, max_description_chars: 50000 }),
+      runClaude,
+    });
+    return { ...out, url: `/api/files/${slug}/${out.file}` };
+  }));
+}
+
+app.get('/api/files/:slug/:file', async (req, res) => {
+  try {
+    const { slug, file } = req.params;
+    const { dataDir } = await loadConfig(CONFIG_FILE);
+    if (!DOC_FILES.has(file) || !dataDir) return res.status(404).json({ error: 'not found' });
+    const path = join(offerDir(dataDir, slug), file);
+    if (!existsSync(path)) return res.status(404).json({ error: 'not found' });
+    res.sendFile(path);
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// Errors thrown by body parsers (e.g. payload too large -> 413).
+app.use('/api', (err, _req, res, next) => {
+  if (res.headersSent) return next(err);
+  sendError(res, err);
 });
 
 // Agentic search, streamed as Server-Sent Events: step / sampling / result / error.
