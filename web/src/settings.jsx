@@ -62,10 +62,16 @@ export function SettingsPanel({ open, onClose, onChange }) {
         <label>
           Carpeta de datos
           <span className="settings__row">
-            <input value={dataDir} onChange={(e) => setDataDir(e.target.value)} placeholder="C:\ruta\a\mis\documentos" />
+            <input
+              value={dataDir}
+              onChange={(e) => setDataDir(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && dataDir.trim() && saveDir()}
+              placeholder="C:\ruta\a\mis\documentos"
+            />
             <button className="btn btn--primary" onClick={saveDir} disabled={busy || !dataDir.trim()}>Guardar</button>
           </span>
         </label>
+        {config?.dataDir && <p className="muted small">Guardada: {config.dataDir}</p>}
 
         <label>
           Modelo para CV y cover letter
@@ -81,9 +87,11 @@ export function SettingsPanel({ open, onClose, onChange }) {
           <input type="file" accept="application/pdf" onChange={upload} disabled={busy || !config?.dataDir} />
         </label>
         <p className="muted small">
-          {config?.hasCvBase
-            ? `CV base cargado · puedes revisar/corregir el texto en ${config.cvBaseMdPath}`
-            : 'Aún no has subido tu CV base'}
+          {!config?.dataDir
+            ? 'Primero escribe la carpeta de datos y pulsa Guardar para poder subir el CV.'
+            : config.hasCvBase
+              ? `CV base cargado · puedes revisar/corregir el texto en ${config.cvBaseMdPath}`
+              : 'Aún no has subido tu CV base'}
         </p>
 
         {error && <p className="error">{error}</p>}
