@@ -1,0 +1,31 @@
+{
+  "name": "freehire-agentic-search",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server for the freehire.me jobs API + React panel with an agentic AI search that samples the local Claude Code (no API key).",
+  "type": "module",
+  "bin": {
+    "freehire-mcp": "mcp/src/index.js"
+  },
+  "scripts": {
+    "mcp": "node mcp/src/index.js",
+    "server": "node --watch-path=server --watch-path=mcp server/index.js",
+    "web": "vite",
+    "dev": "concurrently -n server,web -c blue,magenta \"npm:server\" \"npm:web\"",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "express": "^5.3.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "concurrently": "^10.0.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "vite": "^8.3.4"
+  }
+}

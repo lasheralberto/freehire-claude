@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "freehire": {
+      "command": "node",
+      "args": ["mcp/src/index.js"]
+    }
+  }
+}
